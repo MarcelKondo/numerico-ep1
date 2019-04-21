@@ -1,4 +1,4 @@
-FLAGS = #-Wpedantic -Wall -g -Wextra
+FLAGS = -static-libgcc -static-libstdc++
 
 OBJECTS = main.o
 
@@ -9,4 +9,4 @@ main.o: main.cpp
 	g++ -std=c++11 $(FLAGS) -c -o $@ $<
 
 clean:
-	-rm $(OBJECTS) ep.exe
+	-rm $(OBJECTS) main.exe

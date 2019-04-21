@@ -2,9 +2,11 @@
 #include<math.h>
 #include<vector>
 #include<iostream>
+#include<algorithm>
+#include<stdlib.h>
 
 #define EPS 1e-6
-
+#define RSEED 12345
 
 using namespace std;
 
@@ -13,8 +15,10 @@ bool isZero(double num){
     if(abs(num) < EPS) return true;
     else return false;
 }
-void printM(vector<vector<double>> &W, int n, int m){
+void printM(vector<vector<double>> &W){
 
+    int n = W.size();
+    int m = W[0].size();
     for(int i = 0 ; i < n ; i++){
         for( int j = 0 ; j < m ; j++){
 
@@ -55,9 +59,11 @@ void RotGivens(vector<vector<double>> &W, int n, int m, int i, int j, double s, 
     }
 }
 
-void SolveSys(vector<vector<double>> &W, int n, int m, vector<vector<double>> &b, vector<vector<double>> &x){
+void SolveSys(vector<vector<double>> &W, vector<vector<double>> &b, vector<vector<double>> &x){
     int i, j, k;
     double s, c;
+    int n = W.size();
+    int m = W[0].size();
     for( k = 0 ; k < m ; k++){
         for( j = n-1 ; j >= k+1 ; j--){
             i = j-1;
@@ -68,6 +74,9 @@ void SolveSys(vector<vector<double>> &W, int n, int m, vector<vector<double>> &b
             }
         }
     }
+    //printf("Solvesys:\n");
+    //printM(W);
+    //printM(b);
 
     for(int p = 0 ; p < b[0].size() ; p++){ //solving systems in parallel
         for( k = m-1 ; k >= 0 ; k--){
@@ -83,14 +92,95 @@ void SolveSys(vector<vector<double>> &W, int n, int m, vector<vector<double>> &b
 
 }
 
+void NormalizeCols(vector<vector<double>> &M, int n, int m){
+    double aux;
+    for(int j = 0 ; j < m ; j++){
+        aux = 0.0;
+        for(int i = 0 ; i < n ; i++) aux += M[i][j]*M[i][j];
+        aux = sqrt(aux);
+        for(int i = 0 ; i < n ; i++) M[i][j] = M[i][j]/aux;
+    }
+}
+
+        
+void Transpose(vector<vector<double>> &M , vector<vector<double>> &Mt){
+    int n = M.size();
+    int m = M[0].size();
+    Mt.assign(m , vector<double>(n, 0.0));
+
+    for(int i = 0 ; i < n ; i++){
+        for(int j = 0 ; j < m ; j++){
+            Mt[j][i] = M[i][j]; 
+        }
+    }
+}
+
+void ALS( vector<vector<double>> &A , int p, vector<vector<double>> &W, vector<vector<double>> &H){ //Alternating Least Squares method
+    const double s_eps = 1e-5;
+    const double max_it = 100;
+    double e = 100.0;
+    vector<vector<double>> Wt;
+    vector<vector<double>> Ap;
+    vector<vector<double>> Ht;
+
+    int n = A.size();
+    int m = A[0].size();
+
+    W.assign(n, vector<double>(p, 0.0)); 
+    Wt.assign(p, vector<double>(n, 0.0)); 
+    H.assign(p, vector<double>(m, 0.0)); 
+    Ht.assign(m, vector<double>(p, 0.0)); 
+
+    for(int i = 0 ; i < n ; i++){
+        for(int j = 0 ; j < p ; j++){
+            W[i][j] = double(rand()%100 + 1.0);
+        }
+    }
+
+    
+
+    for(int w = 0; w < max_it && e > s_eps ; w++){
+        Ap = A;
+        NormalizeCols(W, n, p);
+    
+
+        SolveSys(W, Ap, H);
+       
+        for(int i = 0 ; i < p ; i++){
+            for(int j = 0 ; j < m ; j++) H[i][j] = max( H[i][j] , 0.0 );
+        }
+
+        
+
+        Transpose(A, Ap);
+        Transpose(H, Ht);
+      
+
+        SolveSys(Ht, Ap, Wt);        
+        
+        Transpose(Wt, W);
+
+        for(int i = 0 ; i < n ; i++){
+            for(int j = 0 ; j < p ; j++) W[i][j] = max( W[i][j] , 0.0 );
+        }
+
+    }
+
+    
+
+}
 
 int main(){
-    int n, m;
-    vector<vector<double>> W;
-    vector<vector<double>> b;
-    vector<vector<double>> x;
+
+    srand(RSEED);
+    
     //Task1
     {
+        int n, m;
+        vector<vector<double>> W;
+        vector<vector<double>> b;
+        vector<vector<double>> x;
+
         //item a
         printf("START 1-A\n");
         n = 10;
@@ -105,9 +195,9 @@ int main(){
                 else W[i][j] = 0.0;
             }
         }
-        printM(W,n,m);
-        SolveSys(W, n, m, b, x);
-        printM(x, m, 1);
+        printM(W);
+        SolveSys(W, b, x);
+        printM(x);
 
         //end a
         //item b
@@ -124,9 +214,9 @@ int main(){
             }
             b[i][0] = i+1;
         }
-        printM(W,n,m);
-        SolveSys(W, n, m, b, x);
-        printM(x, m, 1);
+        printM(W);
+        SolveSys(W, b, x);
+        printM(x);
         //end b
 
          //item c
@@ -145,9 +235,9 @@ int main(){
             b[i][1] = i+1;
             b[i][2] = 2*(i+1) - 1;
         }
-        printM(W,n,m);
-        SolveSys(W, n, m, b, x);
-        printM(x, m, 3);
+        printM(W);
+        SolveSys(W, b, x);
+        printM(x);
 
         //end c
         //item d
@@ -165,13 +255,29 @@ int main(){
             b[i][1] = i+1;
             b[i][2] = 2*(i+1) - 1;
         }
-        printM(W,n,m);
-        SolveSys(W, n, m, b, x);
+        printM(W);
+        SolveSys(W, b, x);
         
-        printM(x, m, 3);
+        printM(x);
         //end d
         
     }
 
+    //Task 2
+    {
+        printf("START 2\n");
+        vector<vector<double>> A{ vector<double>{ 3.0/10.0 , 3.0/5.0 , 0.0 },
+                                  vector<double>{ 1.0/2.0  ,     0.0 , 1.0 },
+                                  vector<double>{ 4.0/10.0 , 4.0/5.0 , 0.0 }};
+        vector<vector<double>> W, H;
+        
+
+        ALS(A , 2, W, H);
+        printf("W:\n");
+        printM(W);
+        printf("H:\n");
+        printM(H);
+                                  
+    }
     return 0;
 }
