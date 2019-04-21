@@ -18,10 +18,11 @@ void printM(vector<vector<double>> &W, int n, int m){
     for(int i = 0 ; i < n ; i++){
         for( int j = 0 ; j < m ; j++){
 
-            printf("% 1.7f ", W[i][j]);
+            printf("% 1.5f", W[i][j]);
         }
         printf("\n");
     }
+    printf("\n");
 
 }
 
@@ -125,11 +126,51 @@ int main(){
         }
         printM(W,n,m);
         SolveSys(W, n, m, b, x);
-        
         printM(x, m, 1);
-
-
         //end b
+
+         //item c
+        printf("START 1-C\n");
+        n = 10;
+        m = 10;
+        W.assign(n, vector<double>(m, 0.0));
+        b.assign(n, vector<double>(3, 1.0));
+        x.assign(m, vector<double>(3, 0.0));
+        for(int i = 0 ; i < n ; i++){
+            for(int j = 0 ; j < m ; j++){
+                if(i == j) W[i][j] = 2.0;
+                else if(abs(i - j) == 1) W[i][j] = 1.0;
+                else W[i][j] = 0.0;
+            }
+            b[i][1] = i+1;
+            b[i][2] = 2*(i+1) - 1;
+        }
+        printM(W,n,m);
+        SolveSys(W, n, m, b, x);
+        printM(x, m, 3);
+
+        //end c
+        //item d
+        printf("START 1-D\n");
+        n = 20;
+        m = 17;
+        W.assign(n, vector<double>(m, 0.0));
+        b.assign(n, vector<double>(3, 1.0));
+        x.assign(m, vector<double>(3, 0.0));
+        for(int i = 0 ; i < n ; i++){
+            for(int j = 0 ; j < m ; j++){
+                if(abs(i-j) <= 4) W[i][j] = 1.0/(i+1 + j+1 -1);
+                else W[i][j] = 0.0;
+            }
+            b[i][1] = i+1;
+            b[i][2] = 2*(i+1) - 1;
+        }
+        printM(W,n,m);
+        SolveSys(W, n, m, b, x);
+        
+        printM(x, m, 3);
+        //end d
+        
     }
 
     return 0;
