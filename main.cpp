@@ -60,7 +60,6 @@ void SolveSys(vector<vector<double>> &W, int n, int m, vector<vector<double>> &b
     for( k = 0 ; k < m ; k++){
         for( j = n-1 ; j >= k+1 ; j--){
             i = j-1;
-
             if( !isZero(W[j][k]) ){
                 scCalc( s, c, W[j][k], W[i][k]);
                 RotGivens( W, n, m, i, j, s, c);
@@ -68,8 +67,6 @@ void SolveSys(vector<vector<double>> &W, int n, int m, vector<vector<double>> &b
             }
         }
     }
-
-    
 
     for(int p = 0 ; p < b[0].size() ; p++){ //solving systems in parallel
         for( k = m-1 ; k >= 0 ; k--){
@@ -94,10 +91,11 @@ int main(){
     //Task1
     {
         //item a
+        printf("START 1-A\n");
         n = 10;
         m = 10;
         W.assign(n, vector<double>(m, 0.0));
-        b.assign(m, vector<double>(1, 1.0));
+        b.assign(n, vector<double>(1, 1.0));
         x.assign(m, vector<double>(1, 0.0));
         for(int i = 0 ; i < n ; i++){
             for(int j = 0 ; j < m ; j++){
@@ -107,15 +105,29 @@ int main(){
             }
         }
         printM(W,n,m);
-
         SolveSys(W, n, m, b, x);
-
-        printM(W, n, m);
-
         printM(x, m, 1);
 
         //end a
         //item b
+        printf("START 1-B\n");
+        n = 20;
+        m = 17;
+        W.assign(n, vector<double>(m, 0.0));
+        b.assign(n, vector<double>(1, 1.0));
+        x.assign(m, vector<double>(1, 0.0));
+        for(int i = 0 ; i < n ; i++){
+            for(int j = 0 ; j < m ; j++){
+                if(abs(i-j) <= 4) W[i][j] = 1.0/(i+1 + j+1 -1);
+                else W[i][j] = 0.0;
+            }
+            b[i][0] = i+1;
+        }
+        printM(W,n,m);
+        SolveSys(W, n, m, b, x);
+        
+        printM(x, m, 1);
+
 
         //end b
     }
