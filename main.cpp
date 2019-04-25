@@ -4,13 +4,16 @@
 #include<iostream>
 #include<algorithm>
 #include<stdlib.h>
+#include<string>
+#include<fstream>
+#include<sstream>
 
 #define EPS 1e-6
 #define RSEED 12345
 
 using namespace std;
 
-// ----------Handler functions------------
+// ----------Convenient functions------------
 bool isZero(double num){
     if(abs(num) < EPS) return true;
     else return false;
@@ -27,8 +30,49 @@ void printM(vector<vector<double>> &W){
         printf("\n");
     }
     printf("\n");
-
 }
+
+vector<vector<double>> minusM(const vector<vector<double>> &X, const vector<vector<double>> &Y){ 
+    int n = X.size();
+    int m = X[0].size();
+    vector<vector<double>> R;
+    if(n != Y.size() || m != Y[0].size()){
+        printf("SUBTRACTION ERROR");
+        return R;
+    }
+    else{
+        R.assign(n, vector<double>(m, 0.0));
+        for(int i = 0 ; i < n ; i++){
+            for(int j = 0 ; j < m ; j++){
+                R[i][j] = X[i][j] - Y[i][j];
+            }
+        }
+        return R;
+    }
+}
+
+vector<vector<double>> timesM(const vector<vector<double>> &X, const vector<vector<double>> &Y){
+    int n = X.size();
+    int m = Y[0].size();
+    int k = X[0].size();
+    vector<vector<double>> R;
+    if(X[0].size() != Y.size()){
+        printf("MULTIPLICATION ERROR");
+        return R;
+    }
+    else{
+        R.assign(n, vector<double>(m, 0.0));
+        for(int i = 0 ; i < n ; i++){
+            for(int j = 0 ; j < m ; j++){
+                double aux = 0.0;
+                for(int w = 0 ; w < k ; k++) aux += X[i][k]*Y[k][j];
+                R[i][j] = aux;
+            }
+        }
+        return R;
+    }
+}
+
 
 //---------------------------------------
 
@@ -64,6 +108,7 @@ void SolveSys(vector<vector<double>> &W, vector<vector<double>> &b, vector<vecto
     double s, c;
     int n = W.size();
     int m = W[0].size();
+    
     for( k = 0 ; k < m ; k++){
         for( j = n-1 ; j >= k+1 ; j--){
             i = j-1;
@@ -77,6 +122,7 @@ void SolveSys(vector<vector<double>> &W, vector<vector<double>> &b, vector<vecto
     //printf("Solvesys:\n");
     //printM(W);
     //printM(b);
+    x.assign(m, vector<double>(b[0].size(), 0.0));
 
     for(int p = 0 ; p < b[0].size() ; p++){ //solving systems in parallel
         for( k = m-1 ; k >= 0 ; k--){
@@ -163,19 +209,48 @@ void ALS( vector<vector<double>> &A , int p, vector<vector<double>> &W, vector<v
         for(int i = 0 ; i < n ; i++){
             for(int j = 0 ; j < p ; j++) W[i][j] = max( W[i][j] , 0.0 );
         }
-
     }
-
-    
-
 }
+
+void ReadMatrix(const string &file_name, vector<vector<double>> &A, int n_cols = -1){
+    ifstream file(file_name);
+    if(!file){
+        printf("Error opening file\n");
+        return;
+    }
+    else{
+        
+        A.clear();
+
+        for(int i = 0 ; i < 784 ; i++){
+            int k = 0;
+            vector<double> Al;
+            int aux;
+            string line_string;
+            getline(file, line_string);
+            stringstream line_stream(line_string);
+
+            while((line_stream >> aux) && (i++ != n_cols))Al.push_back(aux/255.0);
+
+            A.push_back(Al);
+        }
+    }
+}
+
+void TrainDigit(int digit, int n_comp, vector<vector<double>> &W){
+    vector<vector<double>> A;
+    vector<vector<double>> H;
+    ReadMatrix("dados_mnist/train_dig" + to_string(digit) + ".txt", A);
+    ALS(A, n_comp, W, H);
+}
+
 
 int main(){
 
     srand(RSEED);
     
     //Task1
-    {
+    if(0){
         int n, m;
         vector<vector<double>> W;
         vector<vector<double>> b;
@@ -264,7 +339,7 @@ int main(){
     }
 
     //Task 2
-    {
+    if(0){
         printf("START 2\n");
         vector<vector<double>> A{ vector<double>{ 3.0/10.0 , 3.0/5.0 , 0.0 },
                                   vector<double>{ 1.0/2.0  ,     0.0 , 1.0 },
@@ -278,6 +353,33 @@ int main(){
         printf("H:\n");
         printM(H);
                                   
+    }
+
+    //Main Task
+    if(1){
+        vector<vector<double>> W[10];
+        
+        int n_test = 5000; //MAX: 10000
+        for(int d = 0 ; d < 10 ; d++){ //obtaining Wd for each digit
+            TrainDigit(d, 10, W[d]);
+        }
+
+        vector<vector<double>> A;
+        ReadMatrix("dados_mnist/test_images.txt", A, n_test);
+
+        
+        vector<vector<double>> H[10];
+        for(int d = 0 ; d < 10 ; d++){ //obtaining H from test_images for each digit
+            vector<vector<double>> auxW = W[d];
+            vector<vector<double>> auxA = A;
+            SolveSys(auxW, auxA, H[d]);
+        }
+
+        for(int d = 0 ; d < 10 ; d++){
+            
+        }
+
+        
     }
     return 0;
 }
