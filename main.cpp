@@ -25,7 +25,7 @@ void printM(vector<vector<double>> &W){
     for(int i = 0 ; i < n ; i++){
         for( int j = 0 ; j < m ; j++){
 
-            printf("% 1.5f", W[i][j]);
+            printf("% 1.2f", W[i][j]);
         }
         printf("\n");
     }
@@ -65,10 +65,13 @@ vector<vector<double>> timesM(const vector<vector<double>> &X, const vector<vect
         for(int i = 0 ; i < n ; i++){
             for(int j = 0 ; j < m ; j++){
                 double aux = 0.0;
-                for(int w = 0 ; w < k ; k++) aux += X[i][k]*Y[k][j];
+                
+                for(int w = 0 ; w < k ; w++) aux += X[i][w]*Y[w][j];
+                //printf("aux = %f\n", aux);
                 R[i][j] = aux;
             }
         }
+        //printM(R);
         return R;
     }
 }
@@ -163,14 +166,16 @@ void Transpose(vector<vector<double>> &M , vector<vector<double>> &Mt){
 
 void ALS( vector<vector<double>> &A , int p, vector<vector<double>> &W, vector<vector<double>> &H){ //Alternating Least Squares method
     const double s_eps = 1e-5;
-    const double max_it = 100;
-    double e = 100.0;
+    const double max_it = 10;
+    double e = -1.0; //unitialized
     vector<vector<double>> Wt;
     vector<vector<double>> Ap;
     vector<vector<double>> Ht;
 
     int n = A.size();
     int m = A[0].size();
+
+    //printf("A = %d", A.size());
 
     W.assign(n, vector<double>(p, 0.0)); 
     Wt.assign(p, vector<double>(n, 0.0)); 
@@ -182,32 +187,33 @@ void ALS( vector<vector<double>> &A , int p, vector<vector<double>> &W, vector<v
             W[i][j] = double(rand()%100 + 1.0);
         }
     }
+    //printf("ALS 1\n");
 
-    
-
-    for(int w = 0; w < max_it && e > s_eps ; w++){
+    for(int w = 0; w < max_it && (e > s_eps || e < 0.0) ; w++){
+        vector<vector<double>> last_W = W;
         Ap = A;
         NormalizeCols(W, n, p);
-    
-
+        //printf("ALS 3\n");
+        //printf("W: %dx%d\nAp: %dx%d\nH: %dx%d\n", W.size(), W[0].size(), Ap.size(), Ap[0].size(), H.size(), H[0].size());
         SolveSys(W, Ap, H);
+        //printf("ALS 2\n");
        
         for(int i = 0 ; i < p ; i++){
             for(int j = 0 ; j < m ; j++) H[i][j] = max( H[i][j] , 0.0 );
         }
 
-        
-
         Transpose(A, Ap);
         Transpose(H, Ht);
-      
 
         SolveSys(Ht, Ap, Wt);        
         
         Transpose(Wt, W);
 
         for(int i = 0 ; i < n ; i++){
-            for(int j = 0 ; j < p ; j++) W[i][j] = max( W[i][j] , 0.0 );
+            for(int j = 0 ; j < p ; j++){
+                W[i][j] = max( W[i][j] , 0.0 );
+                e = max(e, abs(W[i][j] - last_W[i][j]));
+            }
         }
     }
 }
@@ -219,28 +225,36 @@ void ReadMatrix(const string &file_name, vector<vector<double>> &A, int n_cols =
         return;
     }
     else{
-        
+        string s;
         A.clear();
-
+        
         for(int i = 0 ; i < 784 ; i++){
             int k = 0;
-            vector<double> Al;
             int aux;
-            string line_string;
-            getline(file, line_string);
-            stringstream line_stream(line_string);
-
-            while((line_stream >> aux) && (i++ != n_cols))Al.push_back(aux/255.0);
-
-            A.push_back(Al);
+            string s;
+            getline(file, s);
+            stringstream ss(s);
+            A.push_back(vector<double>());
+            
+            while(k++ != n_cols){
+                //printf("k = %d ncols = %d\n", k, n_cols);
+                
+                ss >> aux;
+                //if(aux != 0)printf("!= 0!!!!!!\n\n");
+                A[i].push_back(aux/255.0);
+            }
+            
         }
     }
 }
 
-void TrainDigit(int digit, int n_comp, vector<vector<double>> &W){
+void TrainDigit(int digit, int n_comp, vector<vector<double>> &W,int n_cols = -1){
     vector<vector<double>> A;
     vector<vector<double>> H;
-    ReadMatrix("dados_mnist/train_dig" + to_string(digit) + ".txt", A);
+    ReadMatrix("dados_mnist/train_dig" + to_string(digit) + ".txt", A, n_cols);
+    //printf("Read A: %dx%d", A.size(), A[0].size());
+    //printM(A);
+    //printf("foi\n");
     ALS(A, n_comp, W, H);
 }
 
@@ -250,7 +264,7 @@ int main(){
     srand(RSEED);
     
     //Task1
-    if(0){
+    if(1){
         int n, m;
         vector<vector<double>> W;
         vector<vector<double>> b;
@@ -335,6 +349,20 @@ int main(){
         
         printM(x);
         //end d
+
+        //item e
+        printf("START 1-E\n");
+        n = 5;
+        m = 5;
+        vector<vector<double>> Q{ vector<double>{ 2.0 , 1.0 , 1.0 , -1.0 , 1.0 },
+                                  vector<double>{ 0.0 , 3.0 , 0.0 , 1.0 , 2.0 },
+                                  vector<double>{ 0.0 , 0.0 , 2.0 , 2.0 , -1.0 },
+                                  vector<double>{ 0.0 , 0.0 , -1.0 , 1.0 , 2.0 },
+                                  vector<double>{ 0.0 , 0.0 , 0.0 , 3.0 , 1.0 }};
+        b.assign(n, vector<double>(5, 1.0));
+        x.assign(m, vector<double>(5, 0.0));
+        SolveSys(Q, b, x);
+        printM(Q);
         
     }
 
@@ -357,27 +385,47 @@ int main(){
 
     //Main Task
     if(1){
+        printf("START MAIN TASK:\n");
         vector<vector<double>> W[10];
         
-        int n_test = 5000; //MAX: 10000
+        const int n_test = 30; //MAX: 10000
         for(int d = 0 ; d < 10 ; d++){ //obtaining Wd for each digit
-            TrainDigit(d, 10, W[d]);
+            printf("Training digit %d\n", d);
+            TrainDigit(d, 10, W[d], 5000);
         }
-
+        printf("1");
         vector<vector<double>> A;
         ReadMatrix("dados_mnist/test_images.txt", A, n_test);
 
-        
+        printf("2");
         vector<vector<double>> H[10];
         for(int d = 0 ; d < 10 ; d++){ //obtaining H from test_images for each digit
             vector<vector<double>> auxW = W[d];
             vector<vector<double>> auxA = A;
+            printf("Obtaining H[%d]\n", d);
             SolveSys(auxW, auxA, H[d]);
         }
+        printf("3");
+        int dig_pred[n_test];
+        vector<double> dig_error;
+        dig_error.assign(n_test, -1.0);
 
         for(int d = 0 ; d < 10 ; d++){
-            
+
+            vector<vector<double>> E = minusM(A, timesM(W[d], H[d]));
+            for(int k = 0 ; k < n_test ; k++){
+                printf("Predicting index %d\n", k);
+                double c = 0.0;
+                for(int i = 0 ; i < E.size() ; i++) c += E[i][k]*E[i][k];
+                c = sqrt(c);
+                if(c < dig_error[k] || dig_error[k] < 0.0){
+                    dig_pred[k] = d;
+                    dig_error[k] = c;
+                }
+            }
         }
+
+        for(int k = 0 ; k < n_test ; k++) printf("%d ", dig_pred[k]);
 
         
     }
