@@ -24,8 +24,8 @@ void printM(vector<vector<double>> &W){
     int m = W[0].size();
     for(int i = 0 ; i < n ; i++){
         for( int j = 0 ; j < m ; j++){
-
-            printf("% 1.2f", W[i][j]);
+            if(isZero(W[i][j])) printf(" ----");
+            else printf("% 1.2f", W[i][j]);
         }
         printf("\n");
     }
@@ -218,7 +218,7 @@ void ALS( vector<vector<double>> &A , int p, vector<vector<double>> &W, vector<v
     }
 }
 
-void ReadMatrix(const string &file_name, vector<vector<double>> &A, int n_cols = -1){
+void ReadMatrix(const string &file_name, vector<vector<double>> &A, int n_cols = -1, int n_lins = 784){
     ifstream file(file_name);
     if(!file){
         printf("Error opening file\n");
@@ -228,7 +228,7 @@ void ReadMatrix(const string &file_name, vector<vector<double>> &A, int n_cols =
         string s;
         A.clear();
         
-        for(int i = 0 ; i < 784 ; i++){
+        for(int i = 0 ; i < n_lins ; i++){
             int k = 0;
             int aux;
             string s;
@@ -258,6 +258,9 @@ void TrainDigit(int digit, int n_comp, vector<vector<double>> &W,int n_cols = -1
     ALS(A, n_comp, W, H);
 }
 
+double Accuracy(){
+    
+}
 
 int main(){
 
@@ -388,16 +391,18 @@ int main(){
         printf("START MAIN TASK:\n");
         vector<vector<double>> W[10];
         
-        const int n_test = 30; //MAX: 10000
+        const int n_test = 10000; //MAX: 10000
+        const int ndig_treino = 4000;
+        const int p = 15;
         for(int d = 0 ; d < 10 ; d++){ //obtaining Wd for each digit
             printf("Training digit %d\n", d);
-            TrainDigit(d, 10, W[d], 5000);
+            TrainDigit(d, p, W[d], ndig_treino);
         }
-        printf("1");
+        //printf("1");
         vector<vector<double>> A;
         ReadMatrix("dados_mnist/test_images.txt", A, n_test);
 
-        printf("2");
+        //printf("2");
         vector<vector<double>> H[10];
         for(int d = 0 ; d < 10 ; d++){ //obtaining H from test_images for each digit
             vector<vector<double>> auxW = W[d];
@@ -405,16 +410,16 @@ int main(){
             printf("Obtaining H[%d]\n", d);
             SolveSys(auxW, auxA, H[d]);
         }
-        printf("3");
+        //printf("3");
         int dig_pred[n_test];
         vector<double> dig_error;
         dig_error.assign(n_test, -1.0);
 
-        for(int d = 0 ; d < 10 ; d++){
-
+        printf("Predicting Digits...\n");
+        for(int d = 0 ; d < 10 ; d++){  //predicting digits
             vector<vector<double>> E = minusM(A, timesM(W[d], H[d]));
             for(int k = 0 ; k < n_test ; k++){
-                printf("Predicting index %d\n", k);
+                //printf("Predicting index %d\n", k);
                 double c = 0.0;
                 for(int i = 0 ; i < E.size() ; i++) c += E[i][k]*E[i][k];
                 c = sqrt(c);
@@ -426,7 +431,37 @@ int main(){
         }
 
         for(int k = 0 ; k < n_test ; k++) printf("%d ", dig_pred[k]);
+        printf("\n");
 
+        int real_labels[n_test];
+        ifstream test_index("dados_mnist/test_index.txt");
+        if(test_index) for(int i = 0 ; i < n_test ; i++) test_index >> real_labels[i];
+        
+        double accuracy = 0.0;
+        double accuracy_per_digit[10];
+        int digit_occur[10];
+        for(int i = 0 ; i < 10 ; i++){
+            accuracy_per_digit[i] = 0.0;
+            digit_occur[i] = 0.0;
+        }
+        for(int i = 0 ; i < n_test ; i++){
+            digit_occur[real_labels[i]]++;
+            if(dig_pred[i] == real_labels[i]){
+                accuracy += 1.0;
+                accuracy_per_digit[real_labels[i]] += 1.0;
+            }
+        } 
+        accuracy /= n_test;
+        for(int i = 0 ; i < 10 ; i++){
+            accuracy_per_digit[i] /= digit_occur[i];
+        }
+
+        printf("ndig_treino = %d, n_test = %d, p = %d\n", ndig_treino, n_test, p);
+        printf("Accuracy for all digits: %f\n", accuracy);
+
+        for(int i = 0 ; i < 10 ; i++){
+            printf("Accuracy for digit %d: %f\n", i, accuracy_per_digit[i]);
+        }
         
     }
     return 0;
