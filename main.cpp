@@ -7,9 +7,10 @@
 #include<string>
 #include<fstream>
 #include<sstream>
+#include<chrono>
 
-#define EPS 1e-6
-#define RSEED 12345
+#define EPS 1e-4        //constant to define whether some number is considered to be 0 or not
+#define RSEED 12345     //seed for random generator
 
 using namespace std;
 
@@ -24,8 +25,8 @@ void printM(vector<vector<double>> &W){
     int m = W[0].size();
     for(int i = 0 ; i < n ; i++){
         for( int j = 0 ; j < m ; j++){
-            if(isZero(W[i][j])) printf(" ----");
-            else printf("% 1.2f", W[i][j]);
+            if(isZero(W[i][j])) printf(" ......");
+            else printf("% 1.4f", W[i][j]);
         }
         printf("\n");
     }
@@ -79,6 +80,7 @@ vector<vector<double>> timesM(const vector<vector<double>> &X, const vector<vect
 
 //---------------------------------------
 
+// s and c are returned by reference
 void scCalc(double& s, double& c, double wjk, double wik){
     double tau;
     if( abs(wik) > abs(wjk) ){
@@ -91,21 +93,23 @@ void scCalc(double& s, double& c, double wjk, double wik){
         s = 1/sqrt(1 + tau*tau);
         c = s*tau;
     }
-    
     return;
 }
 
+// W is returned by reference
 void RotGivens(vector<vector<double>> &W, int n, int m, int i, int j, double s, double c){
     double aux;
     for(int r = 0 ; r < m ; r++ ){
-
         aux = c*W[i][r] - s*W[j][r];
         W[j][r] = s*W[i][r] + c*W[j][r];
         W[i][r] = aux;
-
     }
 }
 
+// Solving Linear System(s)
+// W and b must be provided, and will have their values changed
+// x is returned by reference
+// b and x are treated as matrices in order to solve systems in parallel
 void SolveSys(vector<vector<double>> &W, vector<vector<double>> &b, vector<vector<double>> &x){
     int i, j, k;
     double s, c;
@@ -122,9 +126,7 @@ void SolveSys(vector<vector<double>> &W, vector<vector<double>> &b, vector<vecto
             }
         }
     }
-    //printf("Solvesys:\n");
-    //printM(W);
-    //printM(b);
+
     x.assign(m, vector<double>(b[0].size(), 0.0));
 
     for(int p = 0 ; p < b[0].size() ; p++){ //solving systems in parallel
@@ -141,6 +143,7 @@ void SolveSys(vector<vector<double>> &W, vector<vector<double>> &b, vector<vecto
 
 }
 
+//M is returned by reference
 void NormalizeCols(vector<vector<double>> &M, int n, int m){
     double aux;
     for(int j = 0 ; j < m ; j++){
@@ -151,7 +154,7 @@ void NormalizeCols(vector<vector<double>> &M, int n, int m){
     }
 }
 
-        
+// Mt receives the values of transpose of M
 void Transpose(vector<vector<double>> &M , vector<vector<double>> &Mt){
     int n = M.size();
     int m = M[0].size();
@@ -164,18 +167,18 @@ void Transpose(vector<vector<double>> &M , vector<vector<double>> &Mt){
     }
 }
 
-void ALS( vector<vector<double>> &A , int p, vector<vector<double>> &W, vector<vector<double>> &H){ //Alternating Least Squares method
-    const double s_eps = 1e-5;
-    const double max_it = 10;
-    double e = -1.0; //unitialized
+// Alternating Least Squares method
+// A must be provided, and does not have its values changed
+// W and H are returned by reference
+// int return value: number of iterations made until convergence
+int ALS( vector<vector<double>> &A , int p, vector<vector<double>> &W, vector<vector<double>> &H, const int max_it = 100){ 
+    const double s_eps = 1e-5;  //minimum error to define convergence (stop criteria)
     vector<vector<double>> Wt;
     vector<vector<double>> Ap;
     vector<vector<double>> Ht;
 
     int n = A.size();
     int m = A[0].size();
-
-    //printf("A = %d", A.size());
 
     W.assign(n, vector<double>(p, 0.0)); 
     Wt.assign(p, vector<double>(n, 0.0)); 
@@ -187,16 +190,15 @@ void ALS( vector<vector<double>> &A , int p, vector<vector<double>> &W, vector<v
             W[i][j] = double(rand()%100 + 1.0);
         }
     }
-    //printf("ALS 1\n");
-
-    for(int w = 0; w < max_it && (e > s_eps || e < 0.0) ; w++){
-        vector<vector<double>> last_W = W;
+    int w;
+    double e = -1.0;      
+    double last_e = -1.0;
+    double delta_e = -1.0;
+    for(w = 0; w < max_it && (delta_e > s_eps || delta_e < 0.0) ; w++){
+        //vector<vector<double>> last_W = W;
         Ap = A;
         NormalizeCols(W, n, p);
-        //printf("ALS 3\n");
-        //printf("W: %dx%d\nAp: %dx%d\nH: %dx%d\n", W.size(), W[0].size(), Ap.size(), Ap[0].size(), H.size(), H[0].size());
         SolveSys(W, Ap, H);
-        //printf("ALS 2\n");
        
         for(int i = 0 ; i < p ; i++){
             for(int j = 0 ; j < m ; j++) H[i][j] = max( H[i][j] , 0.0 );
@@ -209,15 +211,34 @@ void ALS( vector<vector<double>> &A , int p, vector<vector<double>> &W, vector<v
         
         Transpose(Wt, W);
 
+        e = 0.0;
+        vector<vector<double>> errorMatrix = minusM(A, timesM(W, H));
+        for(int i = 0 ; i < n ; i++){
+            for(int j = 0 ; j < m ; j++){
+                e += pow(errorMatrix[i][j],2);
+            }
+        }
+        delta_e = abs(e - last_e);
+        last_e = e;
+        /*
+        e = -1.0;
         for(int i = 0 ; i < n ; i++){
             for(int j = 0 ; j < p ; j++){
                 W[i][j] = max( W[i][j] , 0.0 );
-                e = max(e, abs(W[i][j] - last_W[i][j]));
+                if( !isZero(last_W[i][j]) )
+                    e = max(e, abs( ( W[i][j] - last_W[i][j] )/last_W[i][j] )); //defined error as maximum relative variation for every position of W
             }
         }
+        */
+        
+        if( w%10 == 0)printf("%dth iteration (delta_e = %f)\n", w, delta_e);
     }
+    return w;
 }
 
+//Function to read matrix values from text files
+// A is returned by reference
+// n_cols < 0 implies that there is no limit to the number of collumns in the matrix
 void ReadMatrix(const string &file_name, vector<vector<double>> &A, int n_cols = -1, int n_lins = 784){
     ifstream file(file_name);
     if(!file){
@@ -225,9 +246,7 @@ void ReadMatrix(const string &file_name, vector<vector<double>> &A, int n_cols =
         return;
     }
     else{
-        string s;
         A.clear();
-        
         for(int i = 0 ; i < n_lins ; i++){
             int k = 0;
             int aux;
@@ -235,31 +254,23 @@ void ReadMatrix(const string &file_name, vector<vector<double>> &A, int n_cols =
             getline(file, s);
             stringstream ss(s);
             A.push_back(vector<double>());
-            
             while(k++ != n_cols){
-                //printf("k = %d ncols = %d\n", k, n_cols);
-                
                 ss >> aux;
-                //if(aux != 0)printf("!= 0!!!!!!\n\n");
                 A[i].push_back(aux/255.0);
             }
-            
         }
     }
 }
 
+// Function to obtain Wd for a given digit d from training data
 void TrainDigit(int digit, int n_comp, vector<vector<double>> &W,int n_cols = -1){
     vector<vector<double>> A;
     vector<vector<double>> H;
+    int max_iterations = 100;
     ReadMatrix("dados_mnist/train_dig" + to_string(digit) + ".txt", A, n_cols);
-    //printf("Read A: %dx%d", A.size(), A[0].size());
-    //printM(A);
-    //printf("foi\n");
-    ALS(A, n_comp, W, H);
-}
-
-double Accuracy(){
-    
+    int iterations = ALS(A, n_comp, W, H, max_iterations);
+    if(iterations >= max_iterations)printf("Method did not converge for %d iterations!\n", max_iterations);
+    else printf("Method converged for %d iterations\n", iterations);
 }
 
 int main(){
@@ -267,7 +278,7 @@ int main(){
     srand(RSEED);
     
     //Task1
-    if(1){
+    if(0){
         int n, m;
         vector<vector<double>> W;
         vector<vector<double>> b;
@@ -275,8 +286,8 @@ int main(){
 
         //item a
         printf("START 1-A\n");
-        n = 10;
-        m = 10;
+        n = 64;
+        m = 64;
         W.assign(n, vector<double>(m, 0.0));
         b.assign(n, vector<double>(1, 1.0));
         x.assign(m, vector<double>(1, 0.0));
@@ -287,8 +298,10 @@ int main(){
                 else W[i][j] = 0.0;
             }
         }
+        printf("W(given):\n");
         printM(W);
         SolveSys(W, b, x);
+        printf("x(obtained):\n");
         printM(x);
 
         //end a
@@ -306,15 +319,17 @@ int main(){
             }
             b[i][0] = i+1;
         }
+        printf("W(given):\n");
         printM(W);
         SolveSys(W, b, x);
+        printf("x(obtained):\n");
         printM(x);
         //end b
 
          //item c
         printf("START 1-C\n");
-        n = 10;
-        m = 10;
+        n = 64;
+        m = 64;
         W.assign(n, vector<double>(m, 0.0));
         b.assign(n, vector<double>(3, 1.0));
         x.assign(m, vector<double>(3, 0.0));
@@ -327,8 +342,10 @@ int main(){
             b[i][1] = i+1;
             b[i][2] = 2*(i+1) - 1;
         }
+        printf("W(given):\n");
         printM(W);
         SolveSys(W, b, x);
+        printf("x(obtained):\n");
         printM(x);
 
         //end c
@@ -347,13 +364,14 @@ int main(){
             b[i][1] = i+1;
             b[i][2] = 2*(i+1) - 1;
         }
+        printf("W(given):\n");
         printM(W);
         SolveSys(W, b, x);
-        
+        printf("x(obtained):\n");
         printM(x);
         //end d
 
-        //item e
+        /*//item e
         printf("START 1-E\n");
         n = 5;
         m = 5;
@@ -366,7 +384,7 @@ int main(){
         x.assign(m, vector<double>(5, 0.0));
         SolveSys(Q, b, x);
         printM(Q);
-        
+        */
     }
 
     //Task 2
@@ -379,38 +397,44 @@ int main(){
         
 
         ALS(A , 2, W, H);
-        printf("W:\n");
+        printf("W(obtained):\n");
         printM(W);
-        printf("H:\n");
+        printf("H(obtained):\n");
         printM(H);
                                   
     }
+
 
     //Main Task
     if(1){
         printf("START MAIN TASK:\n");
         vector<vector<double>> W[10];
         
-        const int n_test = 10000; //MAX: 10000
-        const int ndig_treino = 4000;
-        const int p = 15;
-        for(int d = 0 ; d < 10 ; d++){ //obtaining Wd for each digit
+        const int n_test = 10000;   //MAX: 10000
+        const int ndig_treino = 100;
+        const int p = 5;
+        
+        auto start = chrono::high_resolution_clock::now();  //start timing
+        for(int d = 0 ; d < 10 ; d++){  //obtaining Wd for each digit
             printf("Training digit %d\n", d);
             TrainDigit(d, p, W[d], ndig_treino);
         }
-        //printf("1");
+        auto stop = chrono::high_resolution_clock::now(); 
+        auto duration = chrono::duration_cast<chrono::seconds>(stop - start); 
+        cout << "Training took " << duration.count()  << " seconds" << endl; 
+
+
         vector<vector<double>> A;
         ReadMatrix("dados_mnist/test_images.txt", A, n_test);
 
-        //printf("2");
         vector<vector<double>> H[10];
-        for(int d = 0 ; d < 10 ; d++){ //obtaining H from test_images for each digit
+        for(int d = 0 ; d < 10 ; d++){  //obtaining H from test_images for each digit
             vector<vector<double>> auxW = W[d];
             vector<vector<double>> auxA = A;
             printf("Obtaining H[%d]\n", d);
             SolveSys(auxW, auxA, H[d]);
         }
-        //printf("3");
+
         int dig_pred[n_test];
         vector<double> dig_error;
         dig_error.assign(n_test, -1.0);
@@ -433,10 +457,12 @@ int main(){
         for(int k = 0 ; k < n_test ; k++) printf("%d ", dig_pred[k]);
         printf("\n");
 
+        //reading real labels for digits
         int real_labels[n_test];
         ifstream test_index("dados_mnist/test_index.txt");
         if(test_index) for(int i = 0 ; i < n_test ; i++) test_index >> real_labels[i];
         
+        //calculating accuracy for predictions
         double accuracy = 0.0;
         double accuracy_per_digit[10];
         int digit_occur[10];
