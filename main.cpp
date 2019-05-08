@@ -454,7 +454,7 @@ int main(){
             }
         }
 
-        for(int k = 0 ; k < n_test ; k++) printf("%d ", dig_pred[k]);
+        //for(int k = 0 ; k < n_test ; k++) printf("%d ", dig_pred[k]);
         printf("\n");
 
         //reading real labels for digits
