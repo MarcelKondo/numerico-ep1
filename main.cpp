@@ -187,7 +187,7 @@ int ALS( vector<vector<double>> &A , int p, vector<vector<double>> &W, vector<ve
 
     for(int i = 0 ; i < n ; i++){
         for(int j = 0 ; j < p ; j++){
-            W[i][j] = double(rand()%100 + 1.0);
+            W[i][j] = double(rand()%10000 + 1.0);
         }
     }
     int w;
@@ -220,17 +220,13 @@ int ALS( vector<vector<double>> &A , int p, vector<vector<double>> &W, vector<ve
         }
         delta_e = abs(e - last_e);
         last_e = e;
-        /*
-        e = -1.0;
+        
         for(int i = 0 ; i < n ; i++){
             for(int j = 0 ; j < p ; j++){
                 W[i][j] = max( W[i][j] , 0.0 );
-                if( !isZero(last_W[i][j]) )
-                    e = max(e, abs( ( W[i][j] - last_W[i][j] )/last_W[i][j] )); //defined error as maximum relative variation for every position of W
             }
         }
-        */
-        
+    
         if( w%10 == 0)printf("%dth iteration (delta_e = %f)\n", w, delta_e);
     }
     return w;
@@ -412,7 +408,7 @@ int main(){
         
         const int n_test = 10000;   //MAX: 10000
         const int ndig_treino = 100;
-        const int p = 5;
+        const int p = 15;
         
         auto start = chrono::high_resolution_clock::now();  //start timing
         for(int d = 0 ; d < 10 ; d++){  //obtaining Wd for each digit
