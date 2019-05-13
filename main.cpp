@@ -9,7 +9,7 @@
 #include<sstream>
 #include<chrono>
 
-#define EPS 1e-4        //constant to define whether some number is considered to be 0 or not
+#define EPS 1e-6        //constant to define whether some number is considered to be 0 or not
 #define RSEED 12345     //seed for random generator
 
 using namespace std;
@@ -274,11 +274,13 @@ int main(){
     srand(RSEED);
     
     //Task1
-    if(0){
+    if(1){
         int n, m;
         vector<vector<double>> W;
         vector<vector<double>> b;
         vector<vector<double>> x;
+        vector<vector<double>> Wx;
+        vector<vector<double>> error;
 
         //item a
         printf("START 1-A\n");
@@ -299,6 +301,12 @@ int main(){
         SolveSys(W, b, x);
         printf("x(obtained):\n");
         printM(x);
+        printf("W*x:\n");
+        Wx = timesM(W, x);
+        printM(Wx);
+        printf("Error:\n");
+        error = minusM(b, Wx);
+        printM(error);
 
         //end a
         //item b
@@ -320,6 +328,12 @@ int main(){
         SolveSys(W, b, x);
         printf("x(obtained):\n");
         printM(x);
+        printf("W*x:\n");
+        Wx = timesM(W, x);
+        printM(Wx);
+        printf("Error:\n");
+        error = minusM(b, Wx);
+        printM(error);
         //end b
 
          //item c
@@ -343,6 +357,12 @@ int main(){
         SolveSys(W, b, x);
         printf("x(obtained):\n");
         printM(x);
+        printf("W*x:\n");
+        Wx = timesM(W, x);
+        printM(Wx);
+        printf("Error:\n");
+        error = minusM(b, Wx);
+        printM(error);
 
         //end c
         //item d
@@ -365,6 +385,13 @@ int main(){
         SolveSys(W, b, x);
         printf("x(obtained):\n");
         printM(x);
+        printf("W*x:\n");
+        Wx = timesM(W, x);
+        printM(Wx);
+        printf("Error:\n");
+        error = minusM(b, Wx);
+        printM(error);
+        
         //end d
 
         /*//item e
@@ -384,19 +411,26 @@ int main(){
     }
 
     //Task 2
-    if(0){
+    if(1){
         printf("START 2\n");
         vector<vector<double>> A{ vector<double>{ 3.0/10.0 , 3.0/5.0 , 0.0 },
                                   vector<double>{ 1.0/2.0  ,     0.0 , 1.0 },
                                   vector<double>{ 4.0/10.0 , 4.0/5.0 , 0.0 }};
-        vector<vector<double>> W, H;
+        vector<vector<double>> W, H, WH, error;
         
 
-        ALS(A , 2, W, H);
+        int it = ALS(A , 2, W, H);
+        printf("ALS took %d iterations\n", it);
         printf("W(obtained):\n");
         printM(W);
         printf("H(obtained):\n");
         printM(H);
+        printf("W*H:\n");
+        WH = timesM(W, H);
+        printM(WH);
+        printf("Error:\n");
+        error = minusM(A, WH);
+        printM(error);
                                   
     }
 
@@ -407,7 +441,7 @@ int main(){
         vector<vector<double>> W[10];
         
         const int n_test = 10000;   //MAX: 10000
-        const int ndig_treino = 100;
+        const int ndig_treino = 4000;
         const int p = 15;
         
         auto start = chrono::high_resolution_clock::now();  //start timing
